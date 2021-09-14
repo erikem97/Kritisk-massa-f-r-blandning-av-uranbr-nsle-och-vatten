@@ -1,0 +1,103 @@
+#Impoterar python bibliotek
+import matplotlib.pyplot as plt
+import numpy as np
+import math
+
+
+barn = 10E-24 #cm
+
+#Tvärsnitt
+
+sigmaf_235 = 580*barn
+sigmaa_235 = 679*barn
+
+sigmaf_238 = 0
+sigmaa_238 = 2.73*barn
+
+sigmaa_H2O = 0.6*barn
+
+nu = 2.42 #Frigjorda neutroner vid fission
+rho_U = 19.1 #Densitet metaliskt uran g/cm^3
+e = 0.05 #Anrikning i bränslet
+rho_H2O = 1.0 #Densitet vatten g/cm^3
+
+tau = 0 #Neutron ålder cm^2
+L_m = 2.7 #Diffussionslängd för moderatorn cm
+
+
+
+#Korrektion av sfärens radie för beräkning av kriticitet
+def main():
+
+    R_kritisk = []
+    m_u_kritisk = []
+    m_vatten_kritisk = []
+    koncentration_kritisk = []
+
+    for R_sphere in range(1, 101):
+
+        I_tr = 0.43 #cm
+        R_corrected = R_sphere-0.71*I_tr #Beräknar R korrigerad för beräkning av kriticitet
+
+        B2 = (math.pi/R_corrected)**2 #Buktighet
+        M2 = L_m**2+tau #Migrationsyta
+
+        #Beräknar volymen på sfären
+        V_sphere = (4/3)*math.pi*(R_sphere)**3
+
+        #En sfär av ren uran
+        m_ren_uran = V_sphere * rho_U
+
+        #Skapar en vektor för uran massa mellan 0.001g till enbart uran
+        m_uran_vektor = np.linspace(0.001, m_ren_uran, 10000)
+
+        for m_uran in m_uran_vektor:
+
+            #Beräknar volymdelen hos uranet
+            V_uran = m_uran/rho_U
+
+            #Beräknar volymen hos vattnet
+            V_H20 = V_sphere-V_uran
+            #Beräknar massan vatten
+            m_H20 = V_H20*rho_H2O
+
+            #Beräknar kärndensiteten för de olika ämnena
+            N_U238 = (m_uran/(238))*6.02E3*(1-e)
+            N_U235 = (m_uran/(235))*6.02E3*(e)
+            N_H2O = (m_H20/(18))*6.02E3*(1-e)
+
+            eta = (N_U235 * sigmaf_235 * nu) / (N_U235 * sigmaa_235 + N_U238 * sigmaa_238)  # Termiska utnyttjingsfaktorn
+            epsilon_p = 1  # Snabba fissionsfaktorn * resonanspassagefaktorn
+            f = ((N_U235 * sigmaa_235+ N_U238 * sigmaa_238))/(((N_U235 * sigmaa_235+ N_U238 * sigmaa_238)) + ((N_H2O * sigmaa_H2O)))  #Termiska fissionsfaktorn absorption i bränsle/total absorption
+
+            k_inf = epsilon_p * eta * f  # Kriticitet oändlighärd
+            k_eff = k_inf/(1+B2*M2) #K_eff
+
+            if k_eff >= 1:
+                R_kritisk.append(R_sphere)
+                m_u_kritisk.append(m_uran/1000)
+                m_vatten_kritisk.append(m_H20/1000)
+                koncentration_kritisk.append((m_uran)/(V_sphere))
+                break
+
+
+
+
+
+
+    print(min(m_u_kritisk), 'minsta möjliga massa')
+    print(R_kritisk, 'Radier där kriticitet kan uppnås')
+
+
+    # Plottar resultat
+    fig, ax = plt.subplots()
+    ax.plot(koncentration_kritisk, m_u_kritisk, '--o')
+
+    ax.set(xlabel='[kg] Uran / liter ', ylabel='Uran [kg]',
+           title='Sfärens innehåll av uran som funktion av kritiskt koncentration')
+    ax.grid()
+    plt.show()
+
+
+
+main()
